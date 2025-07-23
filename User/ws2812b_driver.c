@@ -1,8 +1,8 @@
 #include "ws2812b_driver.h"
 
 // --- Timing and Buffer Configuration ---
-#define T0H             19  // Pulse width for a '0' (approx. 0.4us)
-#define T1H             38  // Pulse width for a '1' (approx. 0.8us)
+#define T0H             19  
+#define T1H             38  
 #define BITS_PER_LED    24
 #define RESET_PULSE_LEN 50
 
