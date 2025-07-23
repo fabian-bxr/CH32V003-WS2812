@@ -1,104 +1,36 @@
-/********************************** (C) COPYRIGHT *******************************
- * File Name          : main.c
- * Author             : WCH
- * Version            : V1.0.0
- * Date               : 2023/12/25
- * Description        : Main program body.
- *********************************************************************************
- * Copyright (c) 2021 Nanjing Qinheng Microelectronics Co., Ltd.
- * Attention: This software (modified or not) and binary are used for 
- * microcontroller manufactured by Nanjing Qinheng Microelectronics.
- *******************************************************************************/
-
-/*
- *@Note
- *Multiprocessor communication mode routine:
- *Master:USART1_Tx(PD5)\USART1_Rx(PD6).
- *This routine demonstrates that USART1 receives the data sent by CH341 and inverts
- *it and sends it (baud rate 115200).
- *
- *Hardware connection:PD5 -- Rx
- *                     PD6 -- Tx
- *
- */
-
 #include "debug.h"
+#include "ws2812b_driver.h" // Our WS2812B library
 
+/*=============================================================================
+ * Defines
+ *===========================================================================*/
+#define BRIGHTNESS 40   // Max brightness for the LEDs (0-255)
+#define ADC_MAP_MIN            350     // The minimum ADC value for mapping
+#define ADC_MAP_MAX            700     // The maximum ADC value for mapping
 
-/* Global define */
-
-
-/* Global Variable */
-vu8 val;
-
-/*********************************************************************
- * @fn      USARTx_CFG
- *
- * @brief   Initializes the USART2 & USART3 peripheral.
- *
- * @return  none
- */
-void USARTx_CFG(void)
-{
-    GPIO_InitTypeDef  GPIO_InitStructure = {0};
-    USART_InitTypeDef USART_InitStructure = {0};
-
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD | RCC_APB2Periph_USART1, ENABLE);
-
-    /* USART1 TX-->D.5   RX-->D.6 */
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_30MHz;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
-    GPIO_Init(GPIOD, &GPIO_InitStructure);
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-    GPIO_Init(GPIOD, &GPIO_InitStructure);
-
-    USART_InitStructure.USART_BaudRate = 115200;
-    USART_InitStructure.USART_WordLength = USART_WordLength_8b;
-    USART_InitStructure.USART_StopBits = USART_StopBits_1;
-    USART_InitStructure.USART_Parity = USART_Parity_No;
-    USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
-    USART_InitStructure.USART_Mode = USART_Mode_Tx | USART_Mode_Rx;
-
-    USART_Init(USART1, &USART_InitStructure);
-    USART_Cmd(USART1, ENABLE);
-}
-
-/*********************************************************************
- * @fn      main
- *
- * @brief   Main program.
- *
- * @return  none
- */
+/*=============================================================================
+ * Main Function
+ *===========================================================================*/
 int main(void)
 {
+    uint8_t hue = 0;
+    // System initializations
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
     SystemCoreClockUpdate();
     Delay_Init();
-#if (SDI_PRINT == SDI_PR_OPEN)
-    SDI_Printf_Enable();
-#else
-    USART_Printf_Init(115200);
-#endif
-    printf("SystemClk:%d\r\n",SystemCoreClock);
-    printf( "ChipID:%08x\r\n", DBGMCU_GetCHIPID() );
+    // Initialize peripherals
+    ws2812b_init(); // WS2812B LEDs (uses TIM1 on PD2)
 
-    USARTx_CFG();
-
+    // Main loop
     while(1)
     {
-
-        while(USART_GetFlagStatus(USART1, USART_FLAG_RXNE) == RESET)
-        {
-            /* waiting for receiving finish */
-        }
-        val = (USART_ReceiveData(USART1));
-        USART_SendData(USART1, ~val);
-        while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET)
-        {
-            /* waiting for sending finish */
-        }
+        for(uint16_t i = 0; i < WS2812B_NUM_LEDS; i++)
+            {
+                CRGB color = hsv_to_rgb(hue + (i * 255 / WS2812B_NUM_LEDS), 255, BRIGHTNESS);
+                ws2812b_set_pixel(i, color);
+            }
+        ws2812b_show(); // Send the data to the LEDs
+        hue++;
+        Delay_Ms(20);
     }
 }
